@@ -1,0 +1,64 @@
+#include "Wire.h"
+#include "I2Cdev.h"
+#include "MPU6050.h"
+  MPU6050 mpu;
+  int16_t ax, ay, az;
+  int16_t gx, gy, gz; 
+
+long roll;
+int restroll;
+int restvel;
+long vel;
+long motion;
+
+void setup() {
+Serial.begin(9600);
+delay(500);
+Wire.begin(); 
+mpu.initialize();
+mpu.setDMPEnabled(false);
+delay(2000);
+
+mpu.getMotion6(&ax, &ay, &az, &gx, &gy, &gz);
+restroll = ay;
+delay(500);
+mpu.getMotion6(&ax, &ay, &az, &gx, &gy, &gz);
+    
+while(abs(abs(restroll)-abs(ay))>20){
+  mpu.getMotion6(&ax, &ay, &az, &gx, &gy, &gz);
+  restroll = ay;
+
+  delay(500);
+  mpu.getMotion6(&ax, &ay, &az, &gx, &gy, &gz);
+  Serial.print(F("Roll Spread :"));Serial.println(abs(abs(restroll)-abs(ay)));
+  }
+delay(1000);
+restvel = gz;
+}
+
+void loop() {
+mpu.getMotion6(&ax, &ay, &az, &gx, &gy, &gz);
+roll = (ay - restroll);
+vel = (gz - restvel);
+motion = ( ( (vel) - (roll*3) ));
+
+//Serial.print(ax);
+ //  Serial.print("   ");
+//  Serial.print(ay);
+ //   Serial.print("   ");
+//  Serial.print(az);
+//    Serial.print("   ");
+//  Serial.print(gx);
+ //   Serial.print("   ");
+//  Serial.print(gy);
+//    Serial.print("   ");
+  Serial.print(roll);
+  Serial.print("  ");
+  Serial.print(vel);
+  Serial.print("   ");
+  Serial.println(motion);
+
+
+delay(10);
+
+}
