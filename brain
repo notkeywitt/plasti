@@ -1,0 +1,214 @@
+
+struct dataStruct{
+  int IO;
+  int multi;
+  int maxvel;
+}
+myData;
+
+long add = 200;
+int dist = 200;
+int count = 0;
+long restroll;
+long restvel;
+long roll;
+long vel;
+long motion;
+int switchPin = 2;
+
+//#include "LowPower.h"
+
+#include <AccelStepper.h>    
+#define HALFSTEP 8  
+#define motorPin1  3     
+#define motorPin2  4
+#define motorPin3  5
+#define motorPin4  6   
+AccelStepper stepper(HALFSTEP, motorPin1, motorPin3, motorPin2, motorPin4);  
+
+#include <SPI.h>
+#include "RF24.h"
+bool radioNumber = 1;
+RF24 radio(7,8);
+bool role = 0;
+
+
+#include "Wire.h"
+#include "I2Cdev.h"
+#include "MPU6050.h"
+MPU6050 mpu;
+int16_t ax, ay, az;
+int16_t gx, gy, gz; 
+int left, right;
+
+void setup() {
+
+  myData.IO = 1;
+  myData.multi = 3;
+  myData.maxvel = 800;   
+
+Serial.begin(9600);
+delay(500);
+Serial.println("hello");
+  ////GYRO INITIALIZATION///////////////////////////////////////////////
+  Wire.begin(); 
+  mpu.initialize();
+  while(mpu.testConnection() != 1){ 
+    mpu.initialize();
+  }
+  mpu.setDMPEnabled(false);
+  delay(2000);
+  /////////////////////////////////////////////// 
+
+  ////RADIO INITIALIZATION///////////////////////////////////////////////
+  radio.begin();
+  radio.setPALevel(RF24_PA_LOW);  
+  radio.setChannel(108);
+  radio.openReadingPipe(1, 19);
+  radio.startListening();
+  ///////////////////////////////////////////////
+
+  ///STEPPER INITIALIZATION/////////////////////////////////////////////// 
+  stepper.setMaxSpeed(2000.0);  
+  stepper.setAcceleration(2000.0); 
+  stepper.setCurrentPosition(0);
+  ///////////////////////////////////////////////
+
+  //UPSIDEDOWN HOLD//////////////////////////////////////////
+  mpu.getMotion6(&ax, &ay, &az, &gx, &gy, &gz);
+  while(ax<0){
+    mpu.getMotion6(&ax, &ay, &az, &gx, &gy, &gz);
+  }
+  delay(1000);
+  ///////////////////////////////////////////////
+
+  ////FIND REST ACCEL AND ROLL/////////////////////////////////////////////// 
+  mpu.getMotion6(&ax, &ay, &az, &gx, &gy, &gz);
+  restroll = ay;
+  delay(500);
+  mpu.getMotion6(&ax, &ay, &az, &gx, &gy, &gz);
+  Serial.print(F("Roll Spread :"));
+  Serial.println(abs(abs(restroll)-abs(ay)));
+  while(abs(abs(restroll)-abs(ay))>30){
+    mpu.getMotion6(&ax, &ay, &az, &gx, &gy, &gz);
+    restroll = ay;
+    restvel = gz;
+    delay(500);
+    mpu.getMotion6(&ax, &ay, &az, &gx, &gy, &gz);
+    Serial.print(F("Roll Spread :"));
+    Serial.println(abs(abs(restroll)-abs(ay)));
+  }
+
+  ///////////////////////////////////////////////
+  stepper.moveTo(100);
+  while(stepper.distanceToGo() != 0){ 
+    stepper.setSpeed(200);
+    stepper.runSpeedToPosition();
+  }
+    stepper.moveTo(0);
+  while(stepper.distanceToGo() != 0){ 
+    stepper.setSpeed(800);
+    stepper.runSpeedToPosition();
+  }
+    stepper.moveTo(-100);
+  while(stepper.distanceToGo() != 0){ 
+    stepper.setSpeed(200);
+    stepper.runSpeedToPosition();
+  }
+    stepper.moveTo(0);
+  while(stepper.distanceToGo() != 0){ 
+    stepper.setSpeed(800);
+    stepper.runSpeedToPosition();
+  }
+    stepper.moveTo(100);
+  while(stepper.distanceToGo() != 0){ 
+    stepper.setSpeed(200);
+    stepper.runSpeedToPosition();
+  }
+    stepper.moveTo(0);
+  while(stepper.distanceToGo() != 0){ 
+    stepper.setSpeed(800);
+    stepper.runSpeedToPosition();
+  }
+    stepper.moveTo(-100);
+  while(stepper.distanceToGo() != 0){ 
+    stepper.setSpeed(200);
+    stepper.runSpeedToPosition();
+  }
+    stepper.moveTo(0);
+  while(stepper.distanceToGo() != 0){ 
+    stepper.setSpeed(800);
+    stepper.runSpeedToPosition();
+  }
+  
+}
+//////////////////////////////////////////////////////////////////////////////////////////  
+//////////////////////////////////////////////////////////////////////////////////////////  
+
+void loop() {
+  ////MOVEMENT LOOPS//////////////////////////////////////////////////////////////////////////////////////////
+  mpu.getMotion6(&ax, &ay, &az, &gx, &gy, &gz);
+  roll = (ay - restroll)*6L;
+  vel = (gz - restvel);
+  motion = (vel - roll);
+  
+    if(motion>0){
+      motion += add;
+    }
+    if(motion<0){
+      motion -= add;
+    }
+    stepper.moveTo(motion);
+    stepper.setSpeed(abs(520));
+    stepper.runSpeedToPosition();
+
+
+  while(ax<0){
+    mpu.getMotion6(&ax, &ay, &az, &gx, &gy, &gz);
+  }
+  ////////////////////////////////////////////////////////////
+
+
+  /*
+pinMode(switchPin, INPUT_PULLUP);
+   
+   ///RADIO INTERRUPT//////////////////////////////////////////// 
+   if (radio.available()){
+   radio.read ( &myData, sizeof(myData) ); 
+   
+   if(myData.IO == 0){
+   while(myData.IO == 0){
+   while (radio.available()){
+   radio.read ( &myData, sizeof(myData) ); 
+   }  
+   }
+   
+   stepper.moveTo(dist);
+   while(stepper.distanceToGo() != 0){ 
+   stepper.setSpeed(400);
+   stepper.runSpeedToPosition();
+   }
+   stepper.moveTo(-dist);
+   while(stepper.distanceToGo() != 0){ 
+   stepper.setSpeed(400);
+   stepper.runSpeedToPosition();
+   }
+   stepper.moveTo(0);
+   while(stepper.distanceToGo() != 0){ 
+   stepper.setSpeed(400);
+   stepper.runSpeedToPosition();
+   } 
+   } 
+   }
+   */
+
+
+}
+
+
+
+
+
+
+
+
